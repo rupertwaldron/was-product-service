@@ -37,7 +37,7 @@ public class ProductsRepository {
         return productsTable.putItem(product);
     }
 
-    public CompletableFuture<Product> delete(String productId) {
+    public CompletableFuture<Product> deleteById(String productId) {
         return productsTable.deleteItem(Key.builder()
                 .partitionValue(productId)
                 .build());
