@@ -1,5 +1,6 @@
 package com.ruppyrup.productsservice.repositories;
 
+import com.amazonaws.xray.spring.aop.XRayEnabled;
 import com.ruppyrup.productsservice.models.Product;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
@@ -14,6 +15,7 @@ import software.amazon.awssdk.enhanced.dynamodb.model.UpdateItemEnhancedRequest;
 import java.util.concurrent.CompletableFuture;
 
 @Repository
+@XRayEnabled
 public class ProductsRepository {
     private final DynamoDbAsyncTable<Product> productsTable;
 

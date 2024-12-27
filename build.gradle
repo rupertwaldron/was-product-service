@@ -35,6 +35,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-log4j2'
     implementation 'software.amazon.awssdk:dynamodb'
     implementation 'software.amazon.awssdk:dynamodb-enhanced'
+    implementation 'com.amazonaws:aws-xray-recorder-sdk-spring:2.18.2'
+    implementation 'com.amazonaws:aws-xray-recorder-sdk-aws-sdk-v2:2.18.2'
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

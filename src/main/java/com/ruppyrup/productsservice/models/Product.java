@@ -14,6 +14,7 @@ public class Product {
     private String code;
     private float price;
     private String model;
+    private String productUrl;
 
     @DynamoDbPartitionKey
     public String getId() {
