@@ -2,6 +2,7 @@ package com.ruppyrup.productsservice.repositories;
 
 import com.amazonaws.xray.spring.aop.XRayEnabled;
 import com.ruppyrup.productsservice.models.Product;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbAsyncTable;
@@ -14,6 +15,7 @@ import software.amazon.awssdk.enhanced.dynamodb.model.UpdateItemEnhancedRequest;
 
 import java.util.concurrent.CompletableFuture;
 
+@Slf4j
 @Repository
 @XRayEnabled
 public class ProductsRepository {
@@ -30,6 +32,7 @@ public class ProductsRepository {
     }
 
     public CompletableFuture<Product> getById(String productId) {
+        log.info("ProductId :: {}", productId);
         return productsTable.getItem(Key.builder()
                 .partitionValue(productId)
                 .build());
