@@ -2,6 +2,8 @@ package com.ruppyrup.productsservice.products.controllers;
 
 import com.amazonaws.xray.spring.aop.XRayEnabled;
 import com.ruppyrup.productsservice.dto.ProductDto;
+import com.ruppyrup.productsservice.errors.ProductErrors;
+import com.ruppyrup.productsservice.exceptions.ProductException;
 import com.ruppyrup.productsservice.models.Product;
 import com.ruppyrup.productsservice.repositories.ProductsRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -47,12 +49,12 @@ public class ProductsController {
     }
 
     @GetMapping("{id}")
-    public ResponseEntity<ProductDto> getProductById(@PathVariable("id") String id) {
+    public ResponseEntity<ProductDto> getProductById(@PathVariable("id") String id) throws ProductException {
         log.info("Get product by id :: {}", id);
 
         return Optional.ofNullable(productsRepository.getById(id).join())
                 .map(prod -> new ResponseEntity<>(new ProductDto(prod), HttpStatus.OK))
-                .orElse(new ResponseEntity<>(new ProductDto(), HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ProductException(ProductErrors.PRODUCT_NOT_FOUND, id));
     }
 
     @PostMapping
@@ -66,23 +68,23 @@ public class ProductsController {
     }
 
     @DeleteMapping("{id}")
-    public ResponseEntity<ProductDto> deleteProductById(@PathVariable("id") String id) {
+    public ResponseEntity<ProductDto> deleteProductById(@PathVariable("id") String id) throws ProductException {
         log.info("Delete product by id :: {}", id);
 
         return Optional.ofNullable(productsRepository.deleteById(id).join())
                 .map(prod -> new ResponseEntity<>(new ProductDto(prod), HttpStatus.OK))
-                .orElse(new ResponseEntity<>(new ProductDto(), HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new ProductException(ProductErrors.PRODUCT_NOT_FOUND, id));
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<ProductDto> updateProductById(@RequestBody ProductDto productDto, @PathVariable("id") String id) {
+    public ResponseEntity<ProductDto> updateProductById(@RequestBody ProductDto productDto, @PathVariable("id") String id) throws ProductException {
         try {
             Product updatedProduct = productsRepository.update(id, productDto.toProduct()).join();
             log.info("Update product by id :: {}", updatedProduct.getId());
 
             return new ResponseEntity<>(new ProductDto(updatedProduct), HttpStatus.OK);
         } catch (CompletionException e) {
-            return new ResponseEntity<>(new ProductDto(), HttpStatus.NOT_FOUND);
+            throw new ProductException(ProductErrors.PRODUCT_NOT_FOUND, id);
         }
     }
 }
