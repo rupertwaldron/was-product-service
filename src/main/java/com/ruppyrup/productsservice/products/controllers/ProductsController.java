@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
@@ -36,7 +37,14 @@ public class ProductsController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProductDto>> getAllProducts() {
+    public ResponseEntity<?> getAllProducts(@RequestParam(required = false) String code) throws ProductException {
+        if (code != null) {
+            log.info("Get product by code :: {}", code);
+            return Optional.ofNullable(productsRepository.getByCode(code).join())
+                    .map(product -> new ResponseEntity<>(new ProductDto(product), HttpStatus.OK))
+                    .orElseThrow(() -> new ProductException(ProductErrors.PRODUCT_NOT_FOUND, null));
+        }
+
         log.info("Get all products");
         List<ProductDto> productDtos = new ArrayList<>();
 
@@ -58,7 +66,7 @@ public class ProductsController {
     }
 
     @PostMapping
-    public ResponseEntity<ProductDto> createProduct(@RequestBody ProductDto productDto) {
+    public ResponseEntity<ProductDto> createProduct(@RequestBody ProductDto productDto) throws ProductException {
         Product createdProduct = productDto.toProduct();
         createdProduct.setId(UUID.randomUUID().toString());
         log.info("Product created with id :: {}", createdProduct.getId());
