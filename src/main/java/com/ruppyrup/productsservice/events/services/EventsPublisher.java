@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ruppyrup.productsservice.events.dto.EventType;
 import com.ruppyrup.productsservice.events.dto.ProductEventDto;
+import com.ruppyrup.productsservice.events.dto.ProductFailureEventDto;
 import com.ruppyrup.productsservice.models.Product;
 import org.apache.logging.log4j.ThreadContext;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,10 @@ public class EventsPublisher {
       this.snsAsyncClient = snsAsyncClient;
       this.productsEventTopic = productsEventTopic;
       this.objectMapper = objectMapper;
+    }
+
+    public CompletableFuture<PublishResponse> sendProductFailureEvent(ProductFailureEventDto productFailureEventDto) throws JsonProcessingException {
+        return sendEvent(objectMapper.writeValueAsString(productFailureEventDto), EventType.PRODUCT_FAILURE);
     }
 
     public CompletableFuture<PublishResponse> sendProductEvent(Product product, EventType eventType, String email) throws JsonProcessingException {
