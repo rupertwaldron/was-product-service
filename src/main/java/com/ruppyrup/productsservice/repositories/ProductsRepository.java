@@ -28,6 +28,9 @@ import java.util.concurrent.CompletableFuture;
 public class ProductsRepository {
     private final DynamoDbAsyncTable<Product> productsTable;
 
+    @Value("${api.stage}")
+    private String stage;
+
     public ProductsRepository(DynamoDbEnhancedAsyncClient dynamoDbClient,
                               @Value("${aws.productsddb.name}") String productsDdbName) {
         this.productsTable = dynamoDbClient.table(productsDdbName, TableSchema.fromBean(Product.class));
@@ -76,7 +79,7 @@ public class ProductsRepository {
     public CompletableFuture<Void> create(Product product) throws ProductException {
         Product productWithSameCode = checkIfCodeExists(product.getCode()).join();
         if (productWithSameCode != null) {
-            throw new ProductException(ProductErrors.PRODUCT_CODE_ALREADY_EXISTS, productWithSameCode.getId());
+            throw new ProductException(ProductErrors.PRODUCT_CODE_ALREADY_EXISTS, stage, productWithSameCode.getId());
         }
         return productsTable.putItem(product);
     }
@@ -91,7 +94,7 @@ public class ProductsRepository {
         product.setId(productId);
         Product productWithSameCode = checkIfCodeExists(product.getCode()).join();
         if (productWithSameCode != null && !productWithSameCode.getId().equals(product.getId())) {
-            throw new ProductException(ProductErrors.PRODUCT_CODE_ALREADY_EXISTS, productWithSameCode.getId());
+            throw new ProductException(ProductErrors.PRODUCT_CODE_ALREADY_EXISTS, stage, productWithSameCode.getId());
         }
         return productsTable.updateItem(
                 UpdateItemEnhancedRequest.builder(Product.class)

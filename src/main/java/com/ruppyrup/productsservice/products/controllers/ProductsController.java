@@ -44,6 +44,9 @@ public class ProductsController {
     @Value("${asw.sns.notification.email}")
     private String emailNotification;
 
+    @Value("${api.stage}")
+    private String stage;
+
     public ProductsController(ProductsRepository productsRepository, EventsPublisher eventsPublisher) {
         this.productsRepository = productsRepository;
         this.eventsPublisher = eventsPublisher;
@@ -52,10 +55,10 @@ public class ProductsController {
     @GetMapping
     public ResponseEntity<?> getAllProducts(@RequestParam(required = false) String code) throws ProductException {
         if (code != null) {
-            log.info("Get product by code :: {}", code);
+            log.info("Get product by code :: {} in {}", code, stage);
             return Optional.ofNullable(productsRepository.getByCode(code).join())
                     .map(product -> new ResponseEntity<>(new ProductDto(product), HttpStatus.OK))
-                    .orElseThrow(() -> new ProductException(ProductErrors.PRODUCT_NOT_FOUND, null));
+                    .orElseThrow(() -> new ProductException(ProductErrors.PRODUCT_NOT_FOUND, stage, null));
         }
 
         log.info("Get all products");
@@ -71,11 +74,11 @@ public class ProductsController {
 
     @GetMapping("{id}")
     public ResponseEntity<ProductDto> getProductById(@PathVariable("id") String id) throws ProductException {
-        log.info("Get product by id :: {}", id);
+        log.info("Get product by id :: {} in {}", id, stage);
 
         return Optional.ofNullable(productsRepository.getById(id).join())
                 .map(prod -> new ResponseEntity<>(new ProductDto(prod), HttpStatus.OK))
-                .orElseThrow(() -> new ProductException(ProductErrors.PRODUCT_NOT_FOUND, id));
+                .orElseThrow(() -> new ProductException(ProductErrors.PRODUCT_NOT_FOUND, stage, id));
     }
 
     @PostMapping
@@ -83,7 +86,7 @@ public class ProductsController {
             throws ProductException, JsonProcessingException, ExecutionException, InterruptedException {
         Product createdProduct = productDto.toProduct();
         createdProduct.setId(UUID.randomUUID().toString());
-        log.info("Product created with id :: {}", createdProduct.getId());
+        log.info("Product created with id :: {} in {}", createdProduct.getId(), stage);
         CompletableFuture<Void> productCreate = productsRepository.create(createdProduct);
 
         CompletableFuture<PublishResponse> publishResponse = eventsPublisher.sendProductEvent(createdProduct, EventType.PRODUCT_CREATED, emailNotification);
@@ -102,10 +105,10 @@ public class ProductsController {
             PublishResponse publishResponse = eventsPublisher.sendProductEvent(productDeleted, EventType.PRODUCT_DELETED, emailNotification).join();
             ThreadContext.put("messageId", publishResponse.messageId());
 
-            log.info("Product deleted - ID: {}", productDeleted.getId());
+            log.info("Product deleted - ID: {} in {}", productDeleted.getId(), stage);
             return new ResponseEntity<>(new ProductDto(productDeleted), HttpStatus.OK);
         } else {
-            throw new ProductException(ProductErrors.PRODUCT_NOT_FOUND, id);
+            throw new ProductException(ProductErrors.PRODUCT_NOT_FOUND, stage, id);
         }
     }
 
@@ -113,14 +116,14 @@ public class ProductsController {
     public ResponseEntity<ProductDto> updateProductById(@RequestBody ProductDto productDto, @PathVariable("id") String id) throws ProductException, JsonProcessingException {
         try {
             Product updatedProduct = productsRepository.update(id, productDto.toProduct()).join();
-            log.info("Update product by id :: {}", updatedProduct.getId());
+            log.info("Update product by id :: {} in {}", updatedProduct.getId(), stage);
 
             PublishResponse publishResponse = eventsPublisher.sendProductEvent(updatedProduct,EventType.PRODUCT_UPDATED, emailNotification).join();
             ThreadContext.put("messageId", publishResponse.messageId());
 
             return new ResponseEntity<>(new ProductDto(updatedProduct), HttpStatus.OK);
         } catch (CompletionException e) {
-            throw new ProductException(ProductErrors.PRODUCT_NOT_FOUND, id);
+            throw new ProductException(ProductErrors.PRODUCT_NOT_FOUND, stage, id);
         }
     }
 }
