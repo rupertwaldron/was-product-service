@@ -11,6 +11,7 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedAsyncClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClientBuilder;
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
 import software.amazon.awssdk.services.dynamodb.model.BillingMode;
 import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest;
@@ -36,25 +37,57 @@ public class DynamoDBConfig {
     @Value("${aws.region}")
     private String awsRegion;
 
+    @Value("${aws.productsddb.name}")
+    private String productsDBName;
+
     @Bean
-    @Primary
     public DynamoDbAsyncClient dynamoDbAsyncClient() {
-        var clientdB = DynamoDbAsyncClient.builder()
+        var clientdBBuilder = DynamoDbAsyncClient.builder()
                 .credentialsProvider(DefaultCredentialsProvider.create())
-                .endpointOverride(URI.create("http://localhost:8000"))
                 .region(Region.of(awsRegion))
                 .overrideConfiguration(ClientOverrideConfiguration.builder()
                         .addExecutionInterceptor(new TracingInterceptor())
-                        .build())
-                .build();
+                        .build());
 
+        if (amazonDynamoDBEndpoint.isBlank()) {
+            return clientdBBuilder.build();
+        } else {
+            var clientdB = buildLocaldBClient(clientdBBuilder);
+
+            createTableIfNoneExists(clientdB, productsDBName);
+
+            return clientdB;
+        }
+    }
+
+    @Bean
+    public DynamoDbEnhancedAsyncClient dynamoDbEnhancedAsyncClient() {
+        return DynamoDbEnhancedAsyncClient.builder()
+                .dynamoDbClient(dynamoDbAsyncClient())
+                .build();
+    }
+
+    private DynamoDbAsyncClient buildLocaldBClient(DynamoDbAsyncClientBuilder clientdBBuilder) {
+        clientdBBuilder.endpointOverride(URI.create(amazonDynamoDBEndpoint));
+        return clientdBBuilder.build();
+    }
+
+    private static void createTableIfNoneExists(DynamoDbAsyncClient clientdB, String tableName) {
         ListTablesResponse join = clientdB.listTables().join();
 
         if (join.tableNames().contains("products")) {
-            return clientdB;
+            log.info("Setting up table with response {}", tableName);
+            return;
         }
 
-        CompletableFuture<CreateTableResponse> tableCF = clientdB.createTable(
+        CompletableFuture<CreateTableResponse> tableCF = getCreateTableResponseCompletableFuture(clientdB);
+
+        CreateTableResponse tableResponse = tableCF.join();
+        log.info("Setting up table with response {}", tableResponse);
+    }
+
+    private static CompletableFuture<CreateTableResponse> getCreateTableResponseCompletableFuture(DynamoDbAsyncClient clientdB) {
+        return clientdB.createTable(
                 CreateTableRequest.builder()
                         .tableName("Products")
                         .attributeDefinitions(
@@ -91,37 +124,5 @@ public class DynamoDBConfig {
                                         .build())
                                 .build())
                         .build());
-
-
-            CreateTableResponse tableResponse = tableCF.join();
-            log.info("Setting up table with response {}", tableResponse);
-
-        return clientdB;
     }
-
-//    @Bean
-//    public AmazonDynamoDB amazonDynamoDB() {
-//        AmazonDynamoDB amazonDynamoDB
-//                = new AmazonDynamoDBClient(amazonAWSCredentials());
-//
-//        if (!StringUtils.isEmpty(amazonDynamoDBEndpoint)) {
-//            amazonDynamoDB.setEndpoint(amazonDynamoDBEndpoint);
-//        }
-//
-//        return amazonDynamoDB;
-//    }
-
-    @Bean
-    @Primary
-    public DynamoDbEnhancedAsyncClient dynamoDbEnhancedAsyncClient() {
-        return DynamoDbEnhancedAsyncClient.builder()
-                .dynamoDbClient(dynamoDbAsyncClient())
-                .build();
-    }
-
-//    @Bean
-//    public AWSCredentials amazonAWSCredentials() {
-//        return new BasicAWSCredentials(
-//                amazonAWSAccessKey, amazonAWSSecretKey);
-//    }
 }
