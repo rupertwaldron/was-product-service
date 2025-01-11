@@ -8,6 +8,7 @@ import com.ruppyrup.productsservice.events.dto.ProductEventDto;
 import com.ruppyrup.productsservice.events.dto.ProductFailureEventDto;
 import com.ruppyrup.productsservice.models.Product;
 import org.apache.logging.log4j.ThreadContext;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.sns.SnsAsyncClient;
 import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
@@ -20,6 +21,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 @Service
+@Profile("!local")
 public class EventsPublisher {
 
     private final SnsAsyncClient snsAsyncClient;
