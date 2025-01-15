@@ -52,12 +52,17 @@ public class ProductsController {
         this.eventsPublisher = eventsPublisher;
     }
 
+
+
     @GetMapping
     public ResponseEntity<?> getAllProducts(@RequestParam(required = false) String code) throws ProductException {
         if (code != null) {
             log.info("Get product by code :: {} in {}", code, stage);
             return Optional.ofNullable(productsRepository.getByCode(code).join())
-                    .map(product -> new ResponseEntity<>(new ProductDto(product), HttpStatus.OK))
+                    .map(product -> {
+                        log.info("Get all products consumed ==> {}", product.consumedCapacity());
+                        return new ResponseEntity<>(new ProductDto(product.attributes()), HttpStatus.OK);
+                    })
                     .orElseThrow(() -> new ProductException(ProductErrors.PRODUCT_NOT_FOUND, stage, null));
         }
 
@@ -65,9 +70,19 @@ public class ProductsController {
         List<ProductDto> productDtos = new ArrayList<>();
 
         productsRepository.getAll()
-                .items()
-                .subscribe(item -> productDtos.add(new ProductDto(item)))
-                .join();
+                        .subscribe(page -> {
+                            log.info("Consumed capacity for scan ==> {}", page.consumedCapacity());
+                            page.items().stream()
+                                    .map(ProductDto::new)
+                                    .forEach(productDtos::add);
+                        }).join();
+
+//        productsRepository.getAll()
+//                .items()
+//                .subscribe(item -> {
+//                    productDtos.add(new ProductDto(item));
+//                })
+//                .join();
 
         return new ResponseEntity<>(productDtos, HttpStatus.OK);
     }
@@ -77,7 +92,10 @@ public class ProductsController {
         log.info("Get product by id :: {} in {}", id, stage);
 
         return Optional.ofNullable(productsRepository.getById(id).join())
-                .map(prod -> new ResponseEntity<>(new ProductDto(prod), HttpStatus.OK))
+                .map(prod -> {
+                    log.info("Consumbed capacity get product by id :: {}", prod.consumedCapacity());
+                    return new ResponseEntity<>(new ProductDto(prod.attributes()), HttpStatus.OK);
+                })
                 .orElseThrow(() -> new ProductException(ProductErrors.PRODUCT_NOT_FOUND, stage, id));
     }
 
