@@ -21,7 +21,9 @@ public class EventsPublisherLocal extends EventsPublisher {
     @Override
     public CompletableFuture<PublishResponse> sendProductFailureEvent(ProductFailureEventDto productFailureEventDto) {
         log.info("*******sendProductFailureEvent*********");
-        return CompletableFuture.completedFuture(null);
+        return CompletableFuture.completedFuture(PublishResponse.builder()
+                .messageId("Local_Messsage_Id")
+                .build());
     }
 
     @Override

@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import software.amazon.awssdk.enhanced.dynamodb.model.GetItemEnhancedResponse;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
 import java.util.ArrayList;
@@ -91,10 +92,13 @@ public class ProductsController {
     public ResponseEntity<ProductDto> getProductById(@PathVariable("id") String id) throws ProductException {
         log.info("Get product by id :: {} in {}", id, stage);
 
-        return Optional.ofNullable(productsRepository.getById(id).join())
+        GetItemEnhancedResponse<Product> response = productsRepository.getById(id).join();
+
+        log.info("Consumbed capacity get product by id :: {}", response.consumedCapacity());
+
+        return Optional.ofNullable(response.attributes())
                 .map(prod -> {
-                    log.info("Consumbed capacity get product by id :: {}", prod.consumedCapacity());
-                    return new ResponseEntity<>(new ProductDto(prod.attributes()), HttpStatus.OK);
+                    return new ResponseEntity<>(new ProductDto(prod), HttpStatus.OK);
                 })
                 .orElseThrow(() -> new ProductException(ProductErrors.PRODUCT_NOT_FOUND, stage, id));
     }
