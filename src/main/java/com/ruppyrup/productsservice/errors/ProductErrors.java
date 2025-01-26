@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 public enum ProductErrors {
     PRODUCT_NOT_FOUND("Product not found", HttpStatus.NOT_FOUND),
     PRODUCT_CODE_ALREADY_EXISTS("Product already exists", HttpStatus.CONFLICT),
+    PRODUCT_CONDITION_NOT_ALLOWED("Product condition not allowed", HttpStatus.BAD_REQUEST),
     ;
 
     private final String message;

@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import software.amazon.awssdk.enhanced.dynamodb.model.GetItemEnhancedResponse;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
 import java.util.ArrayList;
@@ -54,7 +55,6 @@ public class ProductsController {
     }
 
 
-
     @GetMapping
     public ResponseEntity<?> getAllProducts(@RequestParam(required = false) String code) throws ProductException {
         if (code != null) {
@@ -71,12 +71,12 @@ public class ProductsController {
         List<ProductDto> productDtos = new ArrayList<>();
 
         productsRepository.getAll()
-                        .subscribe(page -> {
-                            log.info("Consumed capacity for scan ==> {}", page.consumedCapacity());
-                            page.items().stream()
-                                    .map(ProductDto::new)
-                                    .forEach(productDtos::add);
-                        }).join();
+                .subscribe(page -> {
+                    log.info("Consumed capacity for scan ==> {}", page.consumedCapacity());
+                    page.items().stream()
+                            .map(ProductDto::new)
+                            .forEach(productDtos::add);
+                }).join();
 
 //        productsRepository.getAll()
 //                .items()
@@ -135,16 +135,25 @@ public class ProductsController {
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<ProductDto> updateProductById(@RequestBody ProductDto productDto, @PathVariable("id") String id) throws ProductException, JsonProcessingException {
+    public ResponseEntity<ProductDto> updateProductById(@RequestBody ProductDto productDto, @PathVariable("id") String id, @RequestParam(required = false) String limit) throws ProductException, JsonProcessingException {
+        Product updatedProduct;
         try {
-            Product updatedProduct = productsRepository.update(id, productDto.toProduct()).join();
+            if (limit != null) {
+                updatedProduct = productsRepository.updateIfPriceLimitFromCurrent(id, productDto.toProduct(), limit).join();
+            } else {
+                updatedProduct = productsRepository.update(id, productDto.toProduct()).join();
+            }
             log.info("Update product by id :: {} in {}", updatedProduct.getId(), stage);
 
-            PublishResponse publishResponse = eventsPublisher.sendProductEvent(updatedProduct,EventType.PRODUCT_UPDATED, emailNotification).join();
+            PublishResponse publishResponse = eventsPublisher.sendProductEvent(updatedProduct, EventType.PRODUCT_UPDATED, emailNotification).join();
             ThreadContext.put("messageId", publishResponse.messageId());
 
             return new ResponseEntity<>(new ProductDto(updatedProduct), HttpStatus.OK);
+
         } catch (CompletionException e) {
+            if (e.getCause() instanceof ConditionalCheckFailedException) {
+                throw new ProductException(ProductErrors.PRODUCT_CONDITION_NOT_ALLOWED, stage, id);
+            }
             throw new ProductException(ProductErrors.PRODUCT_NOT_FOUND, stage, id);
         }
     }

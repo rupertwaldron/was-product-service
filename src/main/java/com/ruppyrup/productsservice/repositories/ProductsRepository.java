@@ -24,6 +24,9 @@ import software.amazon.awssdk.services.dynamodb.model.ReturnConsumedCapacity;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.Map;
+
+import static software.amazon.awssdk.enhanced.dynamodb.internal.AttributeValues.numberValue;
 
 @Slf4j
 @Repository
@@ -106,6 +109,34 @@ public class ProductsRepository {
             throw new ProductException(ProductErrors.PRODUCT_CODE_ALREADY_EXISTS, stage, productWithSameCode.getId());
         }
         return productsTable.putItem(product);
+    }
+
+    public CompletableFuture<Product> updateIfPriceLimitFromCurrent(String productId, Product product, String limit) throws ProductException {
+        Integer limitValue = Integer.valueOf(limit);
+
+        product.setId(productId);
+        Product productWithSameCode = checkIfCodeExists(product.getCode()).join();
+        if (productWithSameCode != null && !productWithSameCode.getId().equals(product.getId())) {
+            throw new ProductException(ProductErrors.PRODUCT_CODE_ALREADY_EXISTS, stage, productWithSameCode.getId());
+        }
+
+        float newPrice = product.getPrice();
+
+        float minValue = newPrice * (1 - limitValue / 100F);
+        float maxValue = newPrice * (1 + limitValue / 100F);
+
+        return productsTable.updateItem(
+                UpdateItemEnhancedRequest.builder(Product.class)
+                        .returnConsumedCapacity(ReturnConsumedCapacity.TOTAL)
+                        .item(product)
+                        .conditionExpression(Expression.builder()
+                                .expression("price >= :min_value AND price <= :max_value")
+                                .expressionValues(Map.of(
+                                        ":min_value", numberValue(minValue),
+                                        ":max_value", numberValue(maxValue)))
+                                .build())
+                        .build()
+        );
     }
 
     public CompletableFuture<Product> deleteById(String productId) {
