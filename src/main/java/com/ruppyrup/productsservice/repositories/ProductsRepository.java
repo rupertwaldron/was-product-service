@@ -15,16 +15,21 @@ import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.enhanced.dynamodb.model.GetItemEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.GetItemEnhancedResponse;
 import software.amazon.awssdk.enhanced.dynamodb.model.PagePublisher;
+import software.amazon.awssdk.enhanced.dynamodb.model.PutItemEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.UpdateItemEnhancedRequest;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.ReturnConsumedCapacity;
 
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static software.amazon.awssdk.enhanced.dynamodb.internal.AttributeValues.numberValue;
 
@@ -108,6 +113,19 @@ public class ProductsRepository {
         if (productWithSameCode != null) {
             throw new ProductException(ProductErrors.PRODUCT_CODE_ALREADY_EXISTS, stage, productWithSameCode.getId());
         }
+        return productsTable.putItem(product);
+    }
+
+    public CompletableFuture<Void> createWithTtl(Product product, String ttl) throws ProductException {
+        Product productWithSameCode = checkIfCodeExists(product.getCode()).join();
+        if (productWithSameCode != null) {
+            throw new ProductException(ProductErrors.PRODUCT_CODE_ALREADY_EXISTS, stage, productWithSameCode.getId());
+        }
+
+        long ttlInSeconds = Instant.now().getEpochSecond() + Integer.parseInt(ttl);
+
+        product.setExpiresAt(ttlInSeconds);
+
         return productsTable.putItem(product);
     }
 

@@ -17,6 +17,16 @@ public class Product {
     private String model;
     private String productUrl;
 
+    public Long getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(Long expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    private Long expiresAt;
+
     @DynamoDbPartitionKey
     public String getId() {
         return id;

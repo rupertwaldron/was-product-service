@@ -104,12 +104,17 @@ public class ProductsController {
     }
 
     @PostMapping
-    public ResponseEntity<ProductDto> createProduct(@RequestBody ProductDto productDto)
+    public ResponseEntity<ProductDto> createProduct(@RequestBody ProductDto productDto, @RequestParam(required = false) String ttl)
             throws ProductException, JsonProcessingException, ExecutionException, InterruptedException {
         Product createdProduct = productDto.toProduct();
         createdProduct.setId(UUID.randomUUID().toString());
         log.info("Product created with id :: {} in {}", createdProduct.getId(), stage);
-        CompletableFuture<Void> productCreate = productsRepository.create(createdProduct);
+        CompletableFuture<Void> productCreate = null;
+        if (ttl != null) {
+            productCreate = productsRepository.createWithTtl(createdProduct, ttl);
+        } else {
+            productCreate = productsRepository.create(createdProduct);
+        }
 
         CompletableFuture<PublishResponse> publishResponse = eventsPublisher.sendProductEvent(createdProduct, EventType.PRODUCT_CREATED, emailNotification);
 

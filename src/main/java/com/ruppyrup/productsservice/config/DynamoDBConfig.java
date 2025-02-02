@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedAsyncClient;
@@ -16,6 +15,8 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
 import software.amazon.awssdk.services.dynamodb.model.BillingMode;
 import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest;
 import software.amazon.awssdk.services.dynamodb.model.CreateTableResponse;
+import software.amazon.awssdk.services.dynamodb.model.DescribeTimeToLiveRequest;
+import software.amazon.awssdk.services.dynamodb.model.DescribeTimeToLiveResponse;
 import software.amazon.awssdk.services.dynamodb.model.GlobalSecondaryIndex;
 import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
 import software.amazon.awssdk.services.dynamodb.model.KeyType;
@@ -24,6 +25,9 @@ import software.amazon.awssdk.services.dynamodb.model.Projection;
 import software.amazon.awssdk.services.dynamodb.model.ProjectionType;
 import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughput;
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
+import software.amazon.awssdk.services.dynamodb.model.TimeToLiveSpecification;
+import software.amazon.awssdk.services.dynamodb.model.UpdateTimeToLiveRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateTimeToLiveResponse;
 
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;
@@ -56,6 +60,14 @@ public class DynamoDBConfig {
 
             createTableIfNoneExists(clientdB, productsDBName);
 
+            CompletableFuture<DescribeTimeToLiveResponse> timeToLive = clientdB.describeTimeToLive(DescribeTimeToLiveRequest.builder()
+                    .tableName(productsDBName)
+                    .build());
+
+            DescribeTimeToLiveResponse timeToLiveResponse = timeToLive.join();
+
+            log.info("Time to live status :: {}", timeToLiveResponse.timeToLiveDescription().timeToLiveStatusAsString());
+
             return clientdB;
         }
     }
@@ -84,12 +96,24 @@ public class DynamoDBConfig {
 
         CreateTableResponse tableResponse = tableCF.join();
         log.info("Setting up table with response {}", tableResponse);
+
+        CompletableFuture<UpdateTimeToLiveResponse> expiresAt = clientdB.updateTimeToLive(UpdateTimeToLiveRequest.builder()
+                .tableName("products")
+                .timeToLiveSpecification(TimeToLiveSpecification.builder()
+                        .enabled(true)
+                        .attributeName("expiresAt")
+                        .build())
+                .build());
+
+        UpdateTimeToLiveResponse ttlRequest = expiresAt.join();
+
+        log.info("Time to live enabled :: {}", ttlRequest.timeToLiveSpecification().enabled().booleanValue());
     }
 
     private static CompletableFuture<CreateTableResponse> getCreateTableResponseCompletableFuture(DynamoDbAsyncClient clientdB) {
         return clientdB.createTable(
                 CreateTableRequest.builder()
-                        .tableName("Products")
+                        .tableName("products")
                         .attributeDefinitions(
                                 AttributeDefinition.builder()
                                         .attributeName("id")
